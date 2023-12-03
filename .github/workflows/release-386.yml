@@ -1,0 +1,112 @@
+name: Release 386 bin
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  get_version:
+    name: Get version
+    runs-on: ubuntu-latest
+    steps:
+      - id: set_output
+        run: echo ::set-output name=version::${GITHUB_REF#refs/tags/v}
+    outputs:
+      version: ${{ steps.set_output.outputs.version }}
+  test:
+    name: Run tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19.3'
+          cache: true
+      - run: go generate github.com/majd/ipatool/...
+      - run: go test -v github.com/majd/ipatool/...
+  build:
+    name: Build
+    runs-on: macos-latest
+    needs: [get_version, test]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19.3'
+          cache: true
+      - run: go build -ldflags="-X github.com/majd/ipatool/v2/cmd.version=$VERSION" -o ipatool-$VERSION-windows-386.exe
+        env:
+          GOOS: windows
+          GOARCH: 386
+          VERSION: ${{ needs.get_version.outputs.version }}
+      - run: go build -ldflags="-X github.com/majd/ipatool/v2/cmd.version=$VERSION" -o ipatool-$VERSION-linux-386
+        env:
+          GOOS: linux
+          GOARCH: 386
+          VERSION: ${{ needs.get_version.outputs.version }}
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ipatool-${{ needs.get_version.outputs.version }}-windows-386.exe
+          path: ipatool-${{ needs.get_version.outputs.version }}-windows-386.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ipatool-${{ needs.get_version.outputs.version }}-linux-386
+          path: ipatool-${{ needs.get_version.outputs.version }}-linux-386
+          if-no-files-found: error
+  release_windows:
+    name: Release for Windows
+    runs-on: ubuntu-latest
+    needs: [get_version, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ 386 ]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: ipatool-${{ needs.get_version.outputs.version }}-windows-${{ matrix.arch }}.exe
+          path: bin
+      - run: tar -czvf $FILE.tar.gz bin/$FILE.exe
+        env:
+          FILE: ipatool-${{ needs.get_version.outputs.version }}-windows-${{ matrix.arch }}
+      - run: ./tools/sha256sum.sh $TARBALL > $TARBALL.sha256sum
+        env:
+          TARBALL: ipatool-${{ needs.get_version.outputs.version }}-windows-${{ matrix.arch }}.tar.gz
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ipatool-${{ needs.get_version.outputs.version }}-windows-${{ matrix.arch }}.*
+          tag: ${{ github.ref }}
+          overwrite: false
+          file_glob: true
+  release_linux:
+    name: Release for Linux
+    runs-on: ubuntu-latest
+    needs: [get_version, build, release_windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ 386 ]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}
+          path: bin
+      - run: tar -czvf $FILE.tar.gz bin/$FILE
+        env:
+          FILE: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}
+      - run: ./tools/sha256sum.sh $TARBALL > $TARBALL.sha256sum
+        env:
+          TARBALL: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}.*
+          tag: ${{ github.ref }}
+          overwrite: false
+          file_glob: true
