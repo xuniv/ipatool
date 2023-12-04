@@ -32,6 +32,7 @@ func New(args Args) Machine {
 }
 
 func (*machine) MacAddress() (string, error) {
+	return "D8658276E1FE", nil
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return "", fmt.Errorf("failed to get network interfaces: %w", err)
