@@ -11,8 +11,13 @@
 - [Installation](#installation)
   - [Manual](#manual)
   - [Package Manager (macOS)](#package-manager-macos)
+- [Quick Scenarios](#quick-scenarios)
+  - [Scenario 1: Install from Release](#scenario-1-install-from-release)
+  - [Scenario 2: Build from Source](#scenario-2-build-from-source)
+  - [Scenario 3: Run in CI/Automation](#scenario-3-run-in-ciautomation)
 - [Usage](#usage)
 - [Compiling](#compiling)
+- [Documentation](#documentation)
 - [License](#license)
 - [Releases](https://github.com/majd/ipatool/releases)
 - [FAQ](https://github.com/majd/ipatool/wiki/FAQ)
@@ -34,6 +39,41 @@ You can install `ipatool` using [Homebrew](https://brew.sh).
 
 ```shell
 $ brew install ipatool
+```
+
+## Quick Scenarios
+
+### Scenario 1: Install from Release
+
+Use this when you want the fastest path to a working CLI without local compilation.
+
+```shell
+# 1) Download the binary for your OS/architecture from GitHub releases.
+# 2) Place it in your PATH and make it executable.
+$ chmod +x ./ipatool
+$ ./ipatool --help
+```
+
+### Scenario 2: Build from Source
+
+Use this when you need a local custom build (e.g., validating a patch or pinning a specific commit).
+
+```shell
+# from repository root
+$ go build -o ./bin/ipatool ./...
+$ ./bin/ipatool --help
+```
+
+### Scenario 3: Run in CI/Automation
+
+Use non-interactive mode and explicit output format for scripting.
+
+```shell
+# authenticate once (or inject credentials through your secure pipeline)
+$ ipatool auth login --non-interactive
+
+# example scripted query
+$ ipatool search "example app" --format json --non-interactive
 ```
 
 ## Usage
@@ -179,6 +219,12 @@ Unit tests can be executed with the following commands.
 $ go generate github.com/majd/ipatool/...
 $ go test -v github.com/majd/ipatool/...
 ```
+
+## Documentation
+
+- [Security policy and threat model](docs/security.md)
+- [Troubleshooting guide](docs/troubleshooting.md)
+- [Version compatibility policy](docs/versioning.md)
 
 ## License
 
