@@ -21,7 +21,7 @@ var _ = Describe("AppStore (AccountInfo)", func() {
 		ctrl = gomock.NewController(GinkgoT())
 		mockKeychain = keychain.NewMockKeychain(ctrl)
 		appstore = NewAppStore(Args{
-			Keychain: mockKeychain,
+			CredentialStore: mockKeychain,
 		})
 	})
 

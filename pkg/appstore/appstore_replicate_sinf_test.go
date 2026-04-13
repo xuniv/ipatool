@@ -41,13 +41,13 @@ var _ = Describe("AppStore (ReplicateSinf)", func() {
 		mockOS = operatingsystem.NewMockOperatingSystem(ctrl)
 		mockMachine = machine.NewMockMachine(ctrl)
 		as = &appstore{
-			keychain:       mockKeychain,
-			loginClient:    mockLoginClient,
-			purchaseClient: mockPurchaseClient,
-			downloadClient: mockDownloadClient,
-			httpClient:     mockHTTPClient,
-			machine:        mockMachine,
-			os:             mockOS,
+			credentialStore: mockKeychain,
+			loginClient:     mockLoginClient,
+			purchaseClient:  mockPurchaseClient,
+			downloadClient:  mockDownloadClient,
+			httpClient:      mockHTTPClient,
+			machine:         mockMachine,
+			os:              mockOS,
 		}
 
 		var err error

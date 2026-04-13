@@ -37,9 +37,9 @@ var _ = Describe("AppStore (Login)", func() {
 		mockClient = http.NewMockClient[loginResult](ctrl)
 		mockMachine = machine.NewMockMachine(ctrl)
 		as = &appstore{
-			keychain:    mockKeychain,
-			loginClient: mockClient,
-			machine:     mockMachine,
+			credentialStore: mockKeychain,
+			loginClient:     mockClient,
+			machine:         mockMachine,
 		}
 	})
 

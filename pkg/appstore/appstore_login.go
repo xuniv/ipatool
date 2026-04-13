@@ -117,7 +117,7 @@ func (t *appstore) login(email, password, authCode, guid, endpoint string) (Acco
 		return Account{}, fmt.Errorf("failed to marshal json: %w", err)
 	}
 
-	err = t.keychain.Set("account", data)
+	err = t.credentialStore.Set("account", data)
 	if err != nil {
 		return Account{}, fmt.Errorf("failed to save account in keychain: %w", err)
 	}

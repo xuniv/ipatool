@@ -5,7 +5,7 @@ import (
 )
 
 func (t *appstore) Revoke() error {
-	err := t.keychain.Remove("account")
+	err := t.credentialStore.Remove("account")
 	if err != nil {
 		return fmt.Errorf("failed to remove account from keychain: %w", err)
 	}
