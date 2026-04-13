@@ -41,7 +41,7 @@ func loginCmd() *cobra.Command {
 		return authCode, nil
 	}
 
-	var email, password, authCode string
+	var email, password, authCode, passwordHostSecret, authCodeHostSecret string
 
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -49,8 +49,27 @@ func loginCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			interactive := cmd.Context().Value("interactive").(bool)
 
+			passwordFromHost := util.Must(hostSecretValue(passwordHostSecret))
+			authCodeFromHost := util.Must(hostSecretValue(authCodeHostSecret))
+
+			if password != "" && passwordFromHost != "" {
+				return errors.New("both --password and --password-host-secret were provided; use only one input channel")
+			}
+
+			if authCode != "" && authCodeFromHost != "" {
+				return errors.New("both --auth-code and --auth-code-host-secret were provided; use only one input channel")
+			}
+
+			if password == "" {
+				password = passwordFromHost
+			}
+
+			if authCode == "" {
+				authCode = authCodeFromHost
+			}
+
 			if password == "" && !interactive {
-				return errors.New("password is required when not running in interactive mode; use the \"--password\" flag")
+				return errors.New("password is required in non-interactive mode; provide --password or --password-host-secret")
 			}
 
 			if password == "" && interactive {
@@ -127,7 +146,9 @@ func loginCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&email, "email", "e", "", "email address for the Apple ID (required)")
 	cmd.Flags().StringVarP(&password, "password", "p", "", "password for the Apple ID (required)")
+	cmd.Flags().StringVar(&passwordHostSecret, "password-host-secret", "", "environment variable name for a host-managed password secret")
 	cmd.Flags().StringVar(&authCode, "auth-code", "", "2FA code for the Apple ID")
+	cmd.Flags().StringVar(&authCodeHostSecret, "auth-code-host-secret", "", "environment variable name for a host-managed 2FA code secret")
 
 	_ = cmd.MarkFlagRequired("email")
 

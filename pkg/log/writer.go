@@ -27,7 +27,7 @@ func NewWriter() Writer {
 }
 
 func (l *writer) Write(p []byte) (int, error) {
-	n, err := l.stdOutWriter.Write(p)
+	n, err := l.stdOutWriter.Write(maskSecrets(p))
 	if err != nil {
 		return 0, fmt.Errorf("failed to write data: %w", err)
 	}
@@ -36,16 +36,18 @@ func (l *writer) Write(p []byte) (int, error) {
 }
 
 func (l *writer) WriteLevel(level zerolog.Level, p []byte) (int, error) {
+	masked := maskSecrets(p)
+
 	switch level {
 	case zerolog.DebugLevel, zerolog.InfoLevel, zerolog.WarnLevel:
-		n, err := l.stdOutWriter.Write(p)
+		n, err := l.stdOutWriter.Write(masked)
 		if err != nil {
 			return 0, fmt.Errorf("failed to write data: %w", err)
 		}
 
 		return n, nil
 	case zerolog.ErrorLevel:
-		n, err := l.stdErrWriter.Write(p)
+		n, err := l.stdErrWriter.Write(masked)
 		if err != nil {
 			return 0, fmt.Errorf("failed to write data: %w", err)
 		}

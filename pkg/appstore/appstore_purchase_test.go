@@ -28,10 +28,10 @@ var _ = Describe("AppStore (Purchase)", func() {
 		mockKeychain = keychain.NewMockKeychain(ctrl)
 		mockMachine = machine.NewMockMachine(ctrl)
 		as = &appstore{
-			keychain:       mockKeychain,
-			purchaseClient: mockPurchaseClient,
-			loginClient:    mockLoginClient,
-			machine:        mockMachine,
+			credentialStore: mockKeychain,
+			purchaseClient:  mockPurchaseClient,
+			loginClient:     mockLoginClient,
+			machine:         mockMachine,
 		}
 	})
 

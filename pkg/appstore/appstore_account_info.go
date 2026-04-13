@@ -10,7 +10,7 @@ type AccountInfoOutput struct {
 }
 
 func (t *appstore) AccountInfo() (AccountInfoOutput, error) {
-	data, err := t.keychain.Get("account")
+	data, err := t.credentialStore.Get("account")
 	if err != nil {
 		return AccountInfoOutput{}, fmt.Errorf("failed to get account: %w", err)
 	}

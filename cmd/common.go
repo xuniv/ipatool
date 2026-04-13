@@ -11,8 +11,8 @@ import (
 	"github.com/99designs/keyring"
 	cookiejar "github.com/juju/persistent-cookiejar"
 	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/pkg/credentialstore"
 	"github.com/majd/ipatool/v2/pkg/http"
-	"github.com/majd/ipatool/v2/pkg/keychain"
 	"github.com/majd/ipatool/v2/pkg/log"
 	"github.com/majd/ipatool/v2/pkg/util"
 	"github.com/majd/ipatool/v2/pkg/util/machine"
@@ -24,14 +24,15 @@ import (
 
 var dependencies = Dependencies{}
 var keychainPassphrase string
+var keychainPassphraseHostSecret string
 
 type Dependencies struct {
-	Logger    log.Logger
-	OS        operatingsystem.OperatingSystem
-	Machine   machine.Machine
-	CookieJar http.CookieJar
-	Keychain  keychain.Keychain
-	AppStore  appstore.AppStore
+	Logger          log.Logger
+	OS              operatingsystem.OperatingSystem
+	Machine         machine.Machine
+	CookieJar       http.CookieJar
+	CredentialStore credentialstore.Store
+	AppStore        appstore.AppStore
 }
 
 // newLogger returns a new logger instance.
@@ -40,7 +41,7 @@ func newLogger(format OutputFormat, verbose bool) log.Logger {
 
 	switch format {
 	case OutputFormatJSON:
-		writer = zerolog.SyncWriter(os.Stdout)
+		writer = log.NewMaskingWriter(zerolog.SyncWriter(os.Stdout))
 	case OutputFormatText:
 		writer = log.NewWriter()
 	}
@@ -59,9 +60,32 @@ func newCookieJar(machine machine.Machine) http.CookieJar {
 	}))
 }
 
-// newKeychain returns a new keychain instance.
-func newKeychain(machine machine.Machine, logger log.Logger, interactive bool) keychain.Keychain {
-	ring := util.Must(keyring.Open(keyring.Config{
+func hostSecretValue(secretName string) (string, error) {
+	if secretName == "" {
+		return "", nil
+	}
+
+	value, ok := os.LookupEnv(secretName)
+	if !ok {
+		return "", fmt.Errorf("host secret %q is not set in the environment", secretName)
+	}
+
+	if value == "" {
+		return "", fmt.Errorf("host secret %q is empty", secretName)
+	}
+
+	return value, nil
+}
+
+// newCredentialStore returns a new credential store instance.
+func newCredentialStore(machine machine.Machine, logger log.Logger, interactive bool) (credentialstore.Store, error) {
+	hostSecretPassphrase := util.Must(hostSecretValue(keychainPassphraseHostSecret))
+
+	if keychainPassphrase != "" && hostSecretPassphrase != "" {
+		return nil, errors.New("both --keychain-passphrase and --keychain-passphrase-host-secret were provided; use only one input channel")
+	}
+
+	ring, err := keyring.Open(keyring.Config{
 		AllowedBackends: []keyring.BackendType{
 			keyring.KeychainBackend,
 			keyring.SecretServiceBackend,
@@ -70,12 +94,16 @@ func newKeychain(machine machine.Machine, logger log.Logger, interactive bool) k
 		ServiceName: KeychainServiceName,
 		FileDir:     filepath.Join(machine.HomeDirectory(), ConfigDirectoryName),
 		FilePasswordFunc: func(s string) (string, error) {
-			if keychainPassphrase == "" && !interactive {
-				return "", errors.New("keychain passphrase is required when not running in interactive mode; use the \"--keychain-passphrase\" flag")
+			if hostSecretPassphrase != "" {
+				return hostSecretPassphrase, nil
 			}
 
 			if keychainPassphrase != "" {
 				return keychainPassphrase, nil
+			}
+
+			if !interactive {
+				return "", errors.New("keychain passphrase is required in non-interactive mode; provide --keychain-passphrase or --keychain-passphrase-host-secret")
 			}
 
 			path := strings.Split(s, " unlock ")[1]
@@ -91,9 +119,12 @@ func newKeychain(machine machine.Machine, logger log.Logger, interactive bool) k
 
 			return password, nil
 		},
-	}))
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return keychain.New(keychain.Args{Keyring: ring})
+	return credentialstore.NewNative(credentialstore.NativeArgs{Keyring: ring}), nil
 }
 
 // initWithCommand initializes the dependencies of the command.
@@ -106,11 +137,11 @@ func initWithCommand(cmd *cobra.Command) {
 	dependencies.OS = operatingsystem.New()
 	dependencies.Machine = machine.New(machine.Args{OS: dependencies.OS})
 	dependencies.CookieJar = newCookieJar(dependencies.Machine)
-	dependencies.Keychain = newKeychain(dependencies.Machine, dependencies.Logger, interactive)
+	dependencies.CredentialStore = util.Must(newCredentialStore(dependencies.Machine, dependencies.Logger, interactive))
 	dependencies.AppStore = appstore.NewAppStore(appstore.Args{
 		CookieJar:       dependencies.CookieJar,
 		OperatingSystem: dependencies.OS,
-		Keychain:        dependencies.Keychain,
+		CredentialStore: dependencies.CredentialStore,
 		Machine:         dependencies.Machine,
 	})
 

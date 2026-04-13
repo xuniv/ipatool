@@ -1,8 +1,8 @@
 package appstore
 
 import (
+	"github.com/majd/ipatool/v2/pkg/credentialstore"
 	"github.com/majd/ipatool/v2/pkg/http"
-	"github.com/majd/ipatool/v2/pkg/keychain"
 	"github.com/majd/ipatool/v2/pkg/util/machine"
 	"github.com/majd/ipatool/v2/pkg/util/operatingsystem"
 )
@@ -34,19 +34,19 @@ type AppStore interface {
 }
 
 type appstore struct {
-	keychain       keychain.Keychain
-	loginClient    http.Client[loginResult]
-	searchClient   http.Client[searchResult]
-	purchaseClient http.Client[purchaseResult]
-	downloadClient http.Client[downloadResult]
-	bagClient      http.Client[bagResult]
-	httpClient     http.Client[interface{}]
-	machine        machine.Machine
-	os             operatingsystem.OperatingSystem
+	credentialStore credentialstore.Store
+	loginClient     http.Client[loginResult]
+	searchClient    http.Client[searchResult]
+	purchaseClient  http.Client[purchaseResult]
+	downloadClient  http.Client[downloadResult]
+	bagClient       http.Client[bagResult]
+	httpClient      http.Client[interface{}]
+	machine         machine.Machine
+	os              operatingsystem.OperatingSystem
 }
 
 type Args struct {
-	Keychain        keychain.Keychain
+	CredentialStore credentialstore.Store
 	CookieJar       http.CookieJar
 	OperatingSystem operatingsystem.OperatingSystem
 	Machine         machine.Machine
@@ -58,14 +58,14 @@ func NewAppStore(args Args) AppStore {
 	}
 
 	return &appstore{
-		keychain:       args.Keychain,
-		loginClient:    http.NewClient[loginResult](clientArgs),
-		searchClient:   http.NewClient[searchResult](clientArgs),
-		purchaseClient: http.NewClient[purchaseResult](clientArgs),
-		downloadClient: http.NewClient[downloadResult](clientArgs),
-		bagClient:      http.NewClient[bagResult](clientArgs),
-		httpClient:     http.NewClient[interface{}](clientArgs),
-		machine:        args.Machine,
-		os:             args.OperatingSystem,
+		credentialStore: args.CredentialStore,
+		loginClient:     http.NewClient[loginResult](clientArgs),
+		searchClient:    http.NewClient[searchResult](clientArgs),
+		purchaseClient:  http.NewClient[purchaseResult](clientArgs),
+		downloadClient:  http.NewClient[downloadResult](clientArgs),
+		bagClient:       http.NewClient[bagResult](clientArgs),
+		httpClient:      http.NewClient[interface{}](clientArgs),
+		machine:         args.Machine,
+		os:              args.OperatingSystem,
 	}
 }
