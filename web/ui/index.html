@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ipatool web shell</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header>
+        <h1>ipatool web shell</h1>
+        <p>Run command flows through Worker + WASM bridge.</p>
+      </header>
+
+      <section class="panel controls">
+        <h2>Core flows</h2>
+        <div class="grid">
+          <form id="auth-form" data-command="auth.login">
+            <h3>Authenticate</h3>
+            <label>
+              Apple ID
+              <input name="appleId" type="email" required autocomplete="off" />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" required autocomplete="new-password" data-sensitive="true" />
+            </label>
+            <button type="submit">Login</button>
+          </form>
+
+          <form id="search-form" data-command="search.apps">
+            <h3>Search</h3>
+            <label>
+              Query
+              <input name="term" type="text" required />
+            </label>
+            <label>
+              Limit
+              <input name="limit" type="number" min="1" max="50" value="5" />
+            </label>
+            <button type="submit">Search</button>
+          </form>
+
+          <form id="download-form" data-command="download.ipa">
+            <h3>Download</h3>
+            <label>
+              App ID
+              <input name="appId" type="number" required />
+            </label>
+            <label>
+              File name
+              <input name="fileName" type="text" value="app.ipa" required />
+            </label>
+            <button type="submit">Download</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Command runner</h2>
+        <form id="command-form">
+          <label>
+            Command
+            <input id="command-name" name="command" type="text" placeholder="search.apps" required />
+          </label>
+          <label>
+            JSON payload
+            <textarea id="command-payload" name="payload" rows="5">{}</textarea>
+          </label>
+          <button type="submit">Execute</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Errors</h2>
+        <output id="error-banner" role="alert" aria-live="assertive"></output>
+      </section>
+
+      <section class="panel">
+        <h2>Result</h2>
+        <pre id="result-view">No command executed.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Event stream</h2>
+        <ol id="event-log"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

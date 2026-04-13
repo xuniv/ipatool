@@ -10,6 +10,7 @@ import (
 
 	"github.com/99designs/keyring"
 	cookiejar "github.com/juju/persistent-cookiejar"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/majd/ipatool/v2/pkg/appstore"
 	"github.com/majd/ipatool/v2/pkg/credentialstore"
 	"github.com/majd/ipatool/v2/pkg/http"
@@ -144,6 +145,7 @@ func initWithCommand(cmd *cobra.Command) {
 		CredentialStore: dependencies.CredentialStore,
 		Machine:         dependencies.Machine,
 	})
+	dependencies.Core = core.New(appStore)
 
 	util.Must("", createConfigDirectory(dependencies.OS, dependencies.Machine))
 }

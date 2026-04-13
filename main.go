@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/majd/ipatool/v2/cmd"
+	"github.com/majd/ipatool/v2/internal/adapters/native"
 )
 
 func main() {
-	os.Exit(cmd.Execute())
+	os.Exit(native.Execute())
 }

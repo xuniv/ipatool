@@ -4,7 +4,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/spf13/cobra"
 	"github.com/thediveo/enumflag/v2"
 	"golang.org/x/net/context"
@@ -62,7 +62,7 @@ func Execute() int {
 			initWithCommand(cmd)
 		}
 
-		var appstoreErr *appstore.Error
+		var appstoreErr *core.Error
 		if errors.As(err, &appstoreErr) {
 			dependencies.Logger.Verbose().Stack().
 				Err(err).

@@ -11,8 +11,13 @@
 - [Installation](#installation)
   - [Manual](#manual)
   - [Package Manager (macOS)](#package-manager-macos)
+- [Quick Scenarios](#quick-scenarios)
+  - [Scenario 1: Install from Release](#scenario-1-install-from-release)
+  - [Scenario 2: Build from Source](#scenario-2-build-from-source)
+  - [Scenario 3: Run in CI/Automation](#scenario-3-run-in-ciautomation)
 - [Usage](#usage)
 - [Compiling](#compiling)
+- [Documentation](#documentation)
 - [License](#license)
 - [Releases](https://github.com/majd/ipatool/releases)
 - [FAQ](https://github.com/majd/ipatool/wiki/FAQ)
@@ -34,6 +39,41 @@ You can install `ipatool` using [Homebrew](https://brew.sh).
 
 ```shell
 $ brew install ipatool
+```
+
+## Quick Scenarios
+
+### Scenario 1: Install from Release
+
+Use this when you want the fastest path to a working CLI without local compilation.
+
+```shell
+# 1) Download the binary for your OS/architecture from GitHub releases.
+# 2) Place it in your PATH and make it executable.
+$ chmod +x ./ipatool
+$ ./ipatool --help
+```
+
+### Scenario 2: Build from Source
+
+Use this when you need a local custom build (e.g., validating a patch or pinning a specific commit).
+
+```shell
+# from repository root
+$ go build -o ./bin/ipatool ./...
+$ ./bin/ipatool --help
+```
+
+### Scenario 3: Run in CI/Automation
+
+Use non-interactive mode and explicit output format for scripting.
+
+```shell
+# authenticate once (or inject credentials through your secure pipeline)
+$ ipatool auth login --non-interactive
+
+# example scripted query
+$ ipatool search "example app" --format json --non-interactive
 ```
 
 ## Usage
@@ -178,6 +218,74 @@ Unit tests can be executed with the following commands.
 ```shell
 $ go generate github.com/majd/ipatool/...
 $ go test -v github.com/majd/ipatool/...
+```
+
+## WASM runtime wrapper (JSON-only I/O)
+
+For automated pipelines, use `tools/wasm_runtime_wrapper.py` to invoke a WebAssembly runtime (`wasmtime` or `wasmer`) with a strict JSON contract:
+
+- **Input:** stdin JSON object
+- **Output:** stdout JSON object only
+- **Logs/debug:** stderr only
+
+### Input schema
+
+```json
+{
+  "runtime": "auto | wasmtime | wasmer",
+  "module": "./ipatool.wasm",
+  "args": ["search", "telegram", "--format", "json", "--non-interactive"],
+  "env": { "KEY": "VALUE" },
+  "cwd": "/optional/working/directory",
+  "stdin": "",
+  "debug": false
+}
+```
+
+### Exit code mapping
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Success (runtime exit code `0` and stdout is valid JSON) |
+| `10` | Invalid wrapper input (`stdin` JSON parse/validation error) |
+| `11` | Unsupported runtime name |
+| `12` | Runtime binary not found in `PATH` |
+| `13` | WASM module file not found |
+| `20` | Runtime command executed but returned non-zero |
+| `21` | Runtime stdout was not valid JSON |
+| `22` | Wrapper internal execution error |
+
+### Example commands
+
+Search:
+
+```bash
+cat <<'JSON' | ./tools/wasm_runtime_wrapper.py
+{
+  "runtime": "auto",
+  "module": "./ipatool.wasm",
+  "args": ["search", "telegram", "--format", "json", "--non-interactive"],
+  "debug": true
+}
+JSON
+```
+
+Metadata lookup:
+
+```bash
+cat <<'JSON' | ./tools/wasm_runtime_wrapper.py
+{
+  "runtime": "auto",
+  "module": "./ipatool.wasm",
+  "args": [
+    "get-version-metadata",
+    "--bundle-identifier", "ph.telegra.Telegraph",
+    "--external-version-id", "123456789",
+    "--format", "json",
+    "--non-interactive"
+  ]
+}
+JSON
 ```
 
 ## License
