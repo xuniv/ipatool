@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  native_build_test:
+    name: Native build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+      - run: go generate ./...
+      - run: go test ./...
+      - run: go build ./...
+
+  wasm_build:
+    name: WASM build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+      - run: ./tools/build_wasm.sh build/wasm
+
+  webui_build:
+    name: WebUI build
+    runs-on: ubuntu-latest
+    needs: [wasm_build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+      - run: ./tools/build_wasm.sh build/webui
+      - run: ./tools/build_webui.sh build/webui
+
+  protocol_compatibility:
+    name: Protocol compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+      - run: go test ./pkg/protocol -run Compatibility -v
+
+  e2e_smoke:
+    name: E2E smoke (web/restricted-cli/embedded)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+      - run: ./tools/e2e_smoke.sh
