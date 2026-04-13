@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
 var _ = Describe("Client", Ordered, func() {
@@ -127,6 +127,46 @@ var _ = Describe("Client", Ordered, func() {
 				mockHandler = func(w http.ResponseWriter, _r *http.Request) {
 					w.Header().Add("Content-Type", "application/xml")
 					_, err := w.Write([]byte("<dict><key>foo</key><string>bar</string></dict>"))
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				sut := NewClient[xmlResult](Args{
+					CookieJar: mockCookieJar,
+				})
+				res, err := sut.Send(Request{
+					URL:            srv.URL,
+					Method:         MethodPOST,
+					ResponseFormat: ResponseFormatXML,
+				})
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Data.Foo).To(Equal("bar"))
+			})
+
+			It("decodes XML response wrapped in an Apple Document envelope", func() {
+				mockHandler = func(w http.ResponseWriter, _r *http.Request) {
+					w.Header().Add("Content-Type", "application/xml")
+					_, err := w.Write([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<Document xmlns=\"http://www.apple.com/itms/\"><key>foo</key><string>bar</string></Document>"))
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				sut := NewClient[xmlResult](Args{
+					CookieJar: mockCookieJar,
+				})
+				res, err := sut.Send(Request{
+					URL:            srv.URL,
+					Method:         MethodPOST,
+					ResponseFormat: ResponseFormatXML,
+				})
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Data.Foo).To(Equal("bar"))
+			})
+
+			It("decodes XML response wrapped in Document/Protocol/plist with nested dict", func() {
+				mockHandler = func(w http.ResponseWriter, _r *http.Request) {
+					w.Header().Add("Content-Type", "application/xml")
+					_, err := w.Write([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<Document xmlns=\"http://www.apple.com/itms/\"><Protocol><plist version=\"1.0\"><dict><key>nested</key><dict><key>a</key><string>b</string></dict><key>foo</key><string>bar</string></dict></plist></Protocol></Document>"))
 					Expect(err).ToNot(HaveOccurred())
 				}
 

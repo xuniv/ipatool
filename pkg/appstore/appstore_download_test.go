@@ -5,19 +5,30 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	gohttp "net/http"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/majd/ipatool/v2/pkg/http"
 	"github.com/majd/ipatool/v2/pkg/keychain"
 	"github.com/majd/ipatool/v2/pkg/util/machine"
 	"github.com/majd/ipatool/v2/pkg/util/operatingsystem"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 	"howett.net/plist"
 )
+
+type dummyFileInfo struct{}
+
+func (d *dummyFileInfo) Name() string       { return "dummy" }
+func (d *dummyFileInfo) Size() int64        { return 0 }
+func (d *dummyFileInfo) Mode() fs.FileMode  { return 0 }
+func (d *dummyFileInfo) ModTime() time.Time { return time.Time{} }
+func (d *dummyFileInfo) IsDir() bool        { return false }
+func (d *dummyFileInfo) Sys() interface{}   { return nil }
 
 var _ = Describe("AppStore (Download)", func() {
 	var (
@@ -56,27 +67,8 @@ var _ = Describe("AppStore (Download)", func() {
 		ctrl.Finish()
 	})
 
-	When("fails to resolve output path", func() {
-		BeforeEach(func() {
-			mockOS.EXPECT().
-				Stat(gomock.Any()).
-				Return(nil, errors.New(""))
-		})
-
-		It("returns error", func() {
-			_, err := as.Download(DownloadInput{
-				OutputPath: "test-out",
-			})
-			Expect(err).To(HaveOccurred())
-		})
-	})
-
 	When("fails to read MAC address", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
-				Return("", nil)
-
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", errors.New(""))
@@ -90,10 +82,6 @@ var _ = Describe("AppStore (Download)", func() {
 
 	When("request fails", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
-				Return("", nil)
-
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", nil)
@@ -109,12 +97,38 @@ var _ = Describe("AppStore (Download)", func() {
 		})
 	})
 
+	When("request uses a custom pod", func() {
+		const (
+			testPod  = "42"
+			testGUID = "001122334455"
+		)
+
+		BeforeEach(func() {
+			mockMachine.EXPECT().
+				MacAddress().
+				Return("00:11:22:33:44:55", nil)
+
+			mockDownloadClient.EXPECT().
+				Send(gomock.Any()).
+				Do(func(req http.Request) {
+					expectedURL := "https://p" + testPod + "-" + PrivateAppStoreAPIDomain + PrivateAppStoreAPIPathDownload + "?guid=" + testGUID
+					Expect(req.URL).To(Equal(expectedURL))
+				}).
+				Return(http.Result[downloadResult]{}, errors.New(""))
+		})
+
+		It("sends the download request to the pod-specific host", func() {
+			_, err := as.Download(DownloadInput{
+				Account: Account{
+					Pod: testPod,
+				},
+			})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	When("password token is expired", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
-				Return("", nil)
-
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", nil)
@@ -134,12 +148,29 @@ var _ = Describe("AppStore (Download)", func() {
 		})
 	})
 
-	When("license is missing", func() {
+	When("Sign In to the iTunes Store", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
+			mockMachine.EXPECT().
+				MacAddress().
 				Return("", nil)
 
+			mockDownloadClient.EXPECT().
+				Send(gomock.Any()).
+				Return(http.Result[downloadResult]{
+					Data: downloadResult{
+						FailureType: FailureTypeSignInRequired,
+					},
+				}, nil)
+		})
+
+		It("returns error", func() {
+			_, err := as.Download(DownloadInput{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	When("license is missing", func() {
+		BeforeEach(func() {
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", nil)
@@ -161,10 +192,6 @@ var _ = Describe("AppStore (Download)", func() {
 
 	When("store API returns error", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
-				Return("", nil)
-
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", nil)
@@ -208,10 +235,6 @@ var _ = Describe("AppStore (Download)", func() {
 
 	When("store API returns no items", func() {
 		BeforeEach(func() {
-			mockOS.EXPECT().
-				Getwd().
-				Return("", nil)
-
 			mockMachine.EXPECT().
 				MacAddress().
 				Return("", nil)
@@ -231,8 +254,36 @@ var _ = Describe("AppStore (Download)", func() {
 		})
 	})
 
+	When("fails to resolve output path", func() {
+		BeforeEach(func() {
+			mockMachine.EXPECT().
+				MacAddress().
+				Return("", nil)
+
+			mockDownloadClient.EXPECT().
+				Send(gomock.Any()).
+				Return(http.Result[downloadResult]{
+					Data: downloadResult{
+						Items: []downloadItemResult{{}},
+					},
+				}, nil)
+
+			mockOS.EXPECT().
+				Stat(gomock.Any()).
+				Return(nil, errors.New(""))
+		})
+
+		It("returns error", func() {
+			_, err := as.Download(DownloadInput{
+				OutputPath: "test-out",
+			})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	When("fails to download file", func() {
 		BeforeEach(func() {
+
 			mockOS.EXPECT().
 				Getwd().
 				Return("", nil)
@@ -263,14 +314,14 @@ var _ = Describe("AppStore (Download)", func() {
 			})
 		})
 
-		When("request fails", func() {
+		When("fails to open file", func() {
 			BeforeEach(func() {
 				mockHTTPClient.EXPECT().
 					NewRequest("GET", gomock.Any(), nil).
 					Return(nil, nil)
 
-				mockHTTPClient.EXPECT().
-					Do(gomock.Any()).
+				mockOS.EXPECT().
+					OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, errors.New(""))
 			})
 
@@ -280,21 +331,45 @@ var _ = Describe("AppStore (Download)", func() {
 			})
 		})
 
-		When("fails to open file", func() {
+		When("fails to get file info", func() {
 			BeforeEach(func() {
 				mockHTTPClient.EXPECT().
 					NewRequest("GET", gomock.Any(), nil).
 					Return(nil, nil)
 
+				mockOS.EXPECT().
+					OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil, nil)
+
+				mockOS.EXPECT().
+					Stat(gomock.Any()).
+					Return(&dummyFileInfo{}, errors.New(""))
+
+			})
+
+			It("returns error", func() {
+				_, err := as.Download(DownloadInput{})
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		When("request fails", func() {
+			BeforeEach(func() {
 				mockHTTPClient.EXPECT().
-					Do(gomock.Any()).
-					Return(&gohttp.Response{
-						Body: gohttp.NoBody,
-					}, nil)
+					NewRequest("GET", gomock.Any(), nil).
+					Return(&gohttp.Request{Header: map[string][]string{}}, nil)
 
 				mockOS.EXPECT().
 					OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil, errors.New(""))
+					Return(nil, nil)
+
+				mockOS.EXPECT().
+					Stat(gomock.Any()).
+					Return(&dummyFileInfo{}, nil)
+
+				mockHTTPClient.EXPECT().
+					Do(gomock.Any()).
+					Return(&gohttp.Response{Body: io.NopCloser(strings.NewReader(""))}, errors.New(""))
 			})
 
 			It("returns error", func() {
@@ -307,7 +382,15 @@ var _ = Describe("AppStore (Download)", func() {
 			BeforeEach(func() {
 				mockHTTPClient.EXPECT().
 					NewRequest("GET", gomock.Any(), nil).
+					Return(&gohttp.Request{Header: map[string][]string{}}, nil)
+
+				mockOS.EXPECT().
+					OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, nil)
+
+				mockOS.EXPECT().
+					Stat(gomock.Any()).
+					Return(&dummyFileInfo{}, nil)
 
 				mockHTTPClient.EXPECT().
 					Do(gomock.Any()).
@@ -315,9 +398,6 @@ var _ = Describe("AppStore (Download)", func() {
 						Body: io.NopCloser(strings.NewReader("ping")),
 					}, nil)
 
-				mockOS.EXPECT().
-					OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil, nil)
 			})
 
 			It("returns error", func() {
@@ -325,6 +405,7 @@ var _ = Describe("AppStore (Download)", func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
+
 	})
 
 	When("successfully downloads file", func() {
@@ -345,7 +426,9 @@ var _ = Describe("AppStore (Download)", func() {
 					Data: downloadResult{
 						Items: []downloadItemResult{
 							{
-								Metadata: map[string]interface{}{},
+								Metadata: map[string]interface{}{
+									"bundleShortVersionString": "xyz",
+								},
 								Sinfs: []Sinf{
 									{
 										ID:   0,
@@ -357,13 +440,17 @@ var _ = Describe("AppStore (Download)", func() {
 					},
 				}, nil)
 
+			mockHTTPClient.EXPECT().
+				NewRequest("GET", gomock.Any(), nil).
+				Return(&gohttp.Request{Header: map[string][]string{}}, nil)
+
 			mockOS.EXPECT().
 				OpenFile(gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(testFile, nil)
 
-			mockHTTPClient.EXPECT().
-				NewRequest("GET", gomock.Any(), nil).
-				Return(nil, nil)
+			mockOS.EXPECT().
+				Stat(gomock.Any()).
+				Return(&dummyFileInfo{}, nil)
 
 			mockHTTPClient.EXPECT().
 				Do(gomock.Any()).
@@ -397,6 +484,7 @@ var _ = Describe("AppStore (Download)", func() {
 			)
 
 			BeforeEach(func() {
+
 				var err error
 				tmpFile, err = os.OpenFile(fmt.Sprintf("%s.tmp", testFile.Name()), os.O_CREATE|os.O_WRONLY, 0644)
 				Expect(err).ToNot(HaveOccurred())

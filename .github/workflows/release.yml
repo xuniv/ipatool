@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v3
         with:
-          go-version: '1.19.3'
+          go-version: "1.23.0"
           cache: true
       - run: go generate github.com/majd/ipatool/...
       - run: go test -v github.com/majd/ipatool/...
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v3
         with:
-          go-version: '1.19.3'
+          go-version: "1.23.0"
           cache: true
       - run: go build -ldflags="-X github.com/majd/ipatool/v2/cmd.version=$VERSION" -o ipatool-$VERSION-windows-arm64.exe
         env:
@@ -71,32 +71,32 @@ jobs:
           CGO_CFLAGS: -mmacosx-version-min=10.15
           CGO_LDFLAGS: -mmacosx-version-min=10.15
           CGO_ENABLED: 1
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-windows-arm64.exe
           path: ipatool-${{ needs.get_version.outputs.version }}-windows-arm64.exe
           if-no-files-found: error
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-windows-amd64.exe
           path: ipatool-${{ needs.get_version.outputs.version }}-windows-amd64.exe
           if-no-files-found: error
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-linux-arm64
           path: ipatool-${{ needs.get_version.outputs.version }}-linux-arm64
           if-no-files-found: error
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-linux-amd64
           path: ipatool-${{ needs.get_version.outputs.version }}-linux-amd64
           if-no-files-found: error
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-macos-arm64
           path: ipatool-${{ needs.get_version.outputs.version }}-macos-arm64
           if-no-files-found: error
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-macos-amd64
           path: ipatool-${{ needs.get_version.outputs.version }}-macos-amd64
@@ -108,10 +108,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ arm64, amd64 ]
+        arch: [arm64, amd64]
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-windows-${{ matrix.arch }}.exe
           path: bin
@@ -135,14 +135,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ arm64, amd64 ]
+        arch: [arm64, amd64]
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}
           path: bin
-      - run: tar -czvf $FILE.tar.gz bin/$FILE
+      - run: chmod +x bin/$FILE && tar -czvf $FILE.tar.gz bin/$FILE
         env:
           FILE: ipatool-${{ needs.get_version.outputs.version }}-linux-${{ matrix.arch }}
       - run: ./tools/sha256sum.sh $TARBALL > $TARBALL.sha256sum
@@ -163,18 +163,18 @@ jobs:
       - uses: actions/checkout@v2
         with:
           path: ./ipatool
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-macos-arm64
           path: bin
-      - run: tar -czvf $BIN.tar.gz bin/$BIN && rm -rf bin/
+      - run: chmod +x bin/$BIN && tar -czvf $BIN.tar.gz bin/$BIN && rm -rf bin/
         env:
           BIN: ipatool-${{ needs.get_version.outputs.version }}-macos-arm64
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ipatool-${{ needs.get_version.outputs.version }}-macos-amd64
           path: bin
-      - run: tar -czvf $FILE.tar.gz bin/$FILE && rm -rf bin/
+      - run: chmod +x bin/$FILE && tar -czvf $FILE.tar.gz bin/$FILE && rm -rf bin/
         env:
           FILE: ipatool-${{ needs.get_version.outputs.version }}-macos-amd64
       - id: sha256
