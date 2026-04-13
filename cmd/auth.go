@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/majd/ipatool/v2/pkg/util"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -67,7 +67,7 @@ func loginCmd() *cobra.Command {
 
 			// nolint:wrapcheck
 			return retry.Do(func() error {
-				if errors.Is(lastErr, appstore.ErrAuthCodeRequired) && interactive {
+				if errors.Is(lastErr, core.ErrAuthCodeRequired) && interactive {
 					dependencies.Logger.Log().Msg("enter 2FA code:")
 
 					var err error
@@ -83,19 +83,19 @@ func loginCmd() *cobra.Command {
 					Str("authCode", util.IfEmpty(authCode, "<nil>")).
 					Msg("logging in")
 
-				bag, err := dependencies.AppStore.Bag(appstore.BagInput{})
+				bag, err := dependencies.Core.Bag(core.BagInput{})
 				if err != nil {
 					return fmt.Errorf("failed to get bag: %w", err)
 				}
 
-				output, err := dependencies.AppStore.Login(appstore.LoginInput{
+				output, err := dependencies.Core.Login(core.LoginInput{
 					Email:    email,
 					Password: password,
 					AuthCode: authCode,
 					Endpoint: bag.AuthEndpoint,
 				})
 				if err != nil {
-					if errors.Is(err, appstore.ErrAuthCodeRequired) && !interactive {
+					if errors.Is(err, core.ErrAuthCodeRequired) && !interactive {
 						dependencies.Logger.Log().Msg("2FA code is required; run the command again and supply a code using the `--auth-code` flag")
 
 						return nil
@@ -119,7 +119,7 @@ func loginCmd() *cobra.Command {
 				retry.RetryIf(func(err error) bool {
 					lastErr = err
 
-					return errors.Is(err, appstore.ErrAuthCodeRequired)
+					return errors.Is(err, core.ErrAuthCodeRequired)
 				}),
 			)
 		},
@@ -140,7 +140,7 @@ func infoCmd() *cobra.Command {
 		Use:   "info",
 		Short: "Show current account info",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			output, err := dependencies.AppStore.AccountInfo()
+			output, err := dependencies.Core.AccountInfo()
 			if err != nil {
 				return err
 			}
@@ -162,7 +162,7 @@ func revokeCmd() *cobra.Command {
 		Use:   "revoke",
 		Short: "Revoke your App Store credentials",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := dependencies.AppStore.Revoke()
+			err := dependencies.Core.Revoke()
 			if err != nil {
 				return err
 			}

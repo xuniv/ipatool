@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -18,18 +18,18 @@ func purchaseCmd() *cobra.Command {
 		Short: "Obtain a license for the app from the App Store",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var lastErr error
-			var acc appstore.Account
+			var acc core.Account
 
 			return retry.Do(func() error {
-				infoResult, err := dependencies.AppStore.AccountInfo()
+				infoResult, err := dependencies.Core.AccountInfo()
 				if err != nil {
 					return err
 				}
 
 				acc = infoResult.Account
 
-				if errors.Is(lastErr, appstore.ErrPasswordTokenExpired) {
-					loginResult, err := dependencies.AppStore.Login(appstore.LoginInput{Email: acc.Email, Password: acc.Password})
+				if errors.Is(lastErr, core.ErrPasswordTokenExpired) {
+					loginResult, err := dependencies.Core.Login(core.LoginInput{Email: acc.Email, Password: acc.Password})
 					if err != nil {
 						return err
 					}
@@ -37,12 +37,12 @@ func purchaseCmd() *cobra.Command {
 					acc = loginResult.Account
 				}
 
-				lookupResult, err := dependencies.AppStore.Lookup(appstore.LookupInput{Account: acc, BundleID: bundleID})
+				lookupResult, err := dependencies.Core.Lookup(core.LookupInput{Account: acc, BundleID: bundleID})
 				if err != nil {
 					return err
 				}
 
-				err = dependencies.AppStore.Purchase(appstore.PurchaseInput{Account: acc, App: lookupResult.App})
+				err = dependencies.Core.Purchase(core.PurchaseInput{Account: acc, App: lookupResult.App})
 				if err != nil {
 					return err
 				}
@@ -58,7 +58,7 @@ func purchaseCmd() *cobra.Command {
 				retry.RetryIf(func(err error) bool {
 					lastErr = err
 
-					return errors.Is(err, appstore.ErrPasswordTokenExpired)
+					return errors.Is(err, core.ErrPasswordTokenExpired)
 				}),
 			)
 		},

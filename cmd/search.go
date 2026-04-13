@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -14,12 +14,12 @@ func searchCmd() *cobra.Command {
 		Short: "Search for iOS apps available on the App Store",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			infoResult, err := dependencies.AppStore.AccountInfo()
+			infoResult, err := dependencies.Core.AccountInfo()
 			if err != nil {
 				return err
 			}
 
-			output, err := dependencies.AppStore.Search(appstore.SearchInput{
+			output, err := dependencies.Core.Search(core.SearchInput{
 				Account: infoResult.Account,
 				Term:    args[0],
 				Limit:   limit,
@@ -30,7 +30,7 @@ func searchCmd() *cobra.Command {
 
 			dependencies.Logger.Log().
 				Int("count", output.Count).
-				Array("apps", appstore.Apps(output.Results)).
+				Array("apps", core.Apps(output.Results)).
 				Send()
 
 			return nil
