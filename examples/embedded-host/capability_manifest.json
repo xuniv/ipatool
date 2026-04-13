@@ -1,0 +1,5 @@
+{
+  "allow_network": true,
+  "allow_storage": true,
+  "allow_secret": false
+}
