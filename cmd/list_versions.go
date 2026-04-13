@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -25,18 +25,18 @@ func ListVersionsCmd() *cobra.Command {
 			}
 
 			var lastErr error
-			var acc appstore.Account
+			var acc core.Account
 
 			return retry.Do(func() error {
-				infoResult, err := dependencies.AppStore.AccountInfo()
+				infoResult, err := dependencies.Core.AccountInfo()
 				if err != nil {
 					return err
 				}
 
 				acc = infoResult.Account
 
-				if errors.Is(lastErr, appstore.ErrPasswordTokenExpired) {
-					loginResult, err := dependencies.AppStore.Login(appstore.LoginInput{Email: acc.Email, Password: acc.Password})
+				if errors.Is(lastErr, core.ErrPasswordTokenExpired) {
+					loginResult, err := dependencies.Core.Login(core.LoginInput{Email: acc.Email, Password: acc.Password})
 					if err != nil {
 						return err
 					}
@@ -44,9 +44,9 @@ func ListVersionsCmd() *cobra.Command {
 					acc = loginResult.Account
 				}
 
-				app := appstore.App{ID: appID}
+				app := core.App{ID: appID}
 				if bundleID != "" {
-					lookupResult, err := dependencies.AppStore.Lookup(appstore.LookupInput{Account: acc, BundleID: bundleID})
+					lookupResult, err := dependencies.Core.Lookup(core.LookupInput{Account: acc, BundleID: bundleID})
 					if err != nil {
 						return err
 					}
@@ -54,7 +54,7 @@ func ListVersionsCmd() *cobra.Command {
 					app = lookupResult.App
 				}
 
-				out, err := dependencies.AppStore.ListVersions(appstore.ListVersionsInput{Account: acc, App: app})
+				out, err := dependencies.Core.ListVersions(core.ListVersionsInput{Account: acc, App: app})
 				if err != nil {
 					return err
 				}
@@ -74,7 +74,7 @@ func ListVersionsCmd() *cobra.Command {
 				retry.RetryIf(func(err error) bool {
 					lastErr = err
 
-					return errors.Is(err, appstore.ErrPasswordTokenExpired)
+					return errors.Is(err, core.ErrPasswordTokenExpired)
 				}),
 			)
 		},

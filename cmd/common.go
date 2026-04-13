@@ -10,6 +10,7 @@ import (
 
 	"github.com/99designs/keyring"
 	cookiejar "github.com/juju/persistent-cookiejar"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/majd/ipatool/v2/pkg/appstore"
 	"github.com/majd/ipatool/v2/pkg/http"
 	"github.com/majd/ipatool/v2/pkg/keychain"
@@ -31,7 +32,7 @@ type Dependencies struct {
 	Machine   machine.Machine
 	CookieJar http.CookieJar
 	Keychain  keychain.Keychain
-	AppStore  appstore.AppStore
+	Core      core.Service
 }
 
 // newLogger returns a new logger instance.
@@ -107,12 +108,13 @@ func initWithCommand(cmd *cobra.Command) {
 	dependencies.Machine = machine.New(machine.Args{OS: dependencies.OS})
 	dependencies.CookieJar = newCookieJar(dependencies.Machine)
 	dependencies.Keychain = newKeychain(dependencies.Machine, dependencies.Logger, interactive)
-	dependencies.AppStore = appstore.NewAppStore(appstore.Args{
+	appStore := appstore.NewAppStore(appstore.Args{
 		CookieJar:       dependencies.CookieJar,
 		OperatingSystem: dependencies.OS,
 		Keychain:        dependencies.Keychain,
 		Machine:         dependencies.Machine,
 	})
+	dependencies.Core = core.New(appStore)
 
 	util.Must("", createConfigDirectory(dependencies.OS, dependencies.Machine))
 }

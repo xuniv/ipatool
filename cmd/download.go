@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/majd/ipatool/v2/pkg/appstore"
+	"github.com/majd/ipatool/v2/internal/core"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
@@ -30,19 +30,19 @@ func downloadCmd() *cobra.Command {
 			}
 
 			var lastErr error
-			var acc appstore.Account
+			var acc core.Account
 			purchased := false
 
 			return retry.Do(func() error {
-				infoResult, err := dependencies.AppStore.AccountInfo()
+				infoResult, err := dependencies.Core.AccountInfo()
 				if err != nil {
 					return err
 				}
 
 				acc = infoResult.Account
 
-				if errors.Is(lastErr, appstore.ErrPasswordTokenExpired) {
-					loginResult, err := dependencies.AppStore.Login(appstore.LoginInput{Email: acc.Email, Password: acc.Password})
+				if errors.Is(lastErr, core.ErrPasswordTokenExpired) {
+					loginResult, err := dependencies.Core.Login(core.LoginInput{Email: acc.Email, Password: acc.Password})
 					if err != nil {
 						return err
 					}
@@ -50,9 +50,9 @@ func downloadCmd() *cobra.Command {
 					acc = loginResult.Account
 				}
 
-				app := appstore.App{ID: appID}
+				app := core.App{ID: appID}
 				if bundleID != "" {
-					lookupResult, err := dependencies.AppStore.Lookup(appstore.LookupInput{Account: acc, BundleID: bundleID})
+					lookupResult, err := dependencies.Core.Lookup(core.LookupInput{Account: acc, BundleID: bundleID})
 					if err != nil {
 						return err
 					}
@@ -60,8 +60,8 @@ func downloadCmd() *cobra.Command {
 					app = lookupResult.App
 				}
 
-				if errors.Is(lastErr, appstore.ErrLicenseRequired) {
-					err := dependencies.AppStore.Purchase(appstore.PurchaseInput{Account: acc, App: app})
+				if errors.Is(lastErr, core.ErrLicenseRequired) {
+					err := dependencies.Core.Purchase(core.PurchaseInput{Account: acc, App: app})
 					if err != nil {
 						return err
 					}
@@ -90,13 +90,13 @@ func downloadCmd() *cobra.Command {
 					)
 				}
 
-				out, err := dependencies.AppStore.Download(appstore.DownloadInput{
+				out, err := dependencies.Core.Download(core.DownloadInput{
 					Account: acc, App: app, OutputPath: outputPath, Progress: progress, ExternalVersionID: externalVersionID})
 				if err != nil {
 					return err
 				}
 
-				err = dependencies.AppStore.ReplicateSinf(appstore.ReplicateSinfInput{Sinfs: out.Sinfs, PackagePath: out.DestinationPath})
+				err = dependencies.Core.ReplicateSinf(core.ReplicateSinfInput{Sinfs: out.Sinfs, PackagePath: out.DestinationPath})
 				if err != nil {
 					return err
 				}
@@ -116,11 +116,11 @@ func downloadCmd() *cobra.Command {
 				retry.RetryIf(func(err error) bool {
 					lastErr = err
 
-					if errors.Is(err, appstore.ErrPasswordTokenExpired) {
+					if errors.Is(err, core.ErrPasswordTokenExpired) {
 						return true
 					}
 
-					if errors.Is(err, appstore.ErrLicenseRequired) && acquireLicense {
+					if errors.Is(err, core.ErrLicenseRequired) && acquireLicense {
 						return true
 					}
 
